@@ -1,5 +1,5 @@
 # AI_Boat_Pilot
-It is a boat controlled by a machine learning agent that is tasked to reach the goal as fast as possible.
+It is a boat controlled by a machine learning agent that is tasked to shoot 5 fireworks as fast as possible.
 
 ![alt text](https://i.postimg.cc/qBGczH8F/Screenshot-2026-06-08-200445.png)
 
