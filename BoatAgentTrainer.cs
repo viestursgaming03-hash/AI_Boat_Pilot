@@ -4,6 +4,7 @@ using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using random = UnityEngine.Random;
 using Unity.Mathematics;
+using UnityEngine.InputSystem.Controls;
 
 // for training - conda activate mlagents
 // for training - cd "C:\Users\User\AI_boat_pilot"
@@ -23,6 +24,8 @@ public class BoatAgentTrainer : Agent
     private int _twos = 0;
     private int _threes = 0;
     private int _fours = 0;
+    private int _fireworks = 0;
+    private int _maxFireworks = 5;
     private int _currentEpisode = 0;
     private float _cumulativeReward = 0f;
     public override void Initialize()
@@ -40,6 +43,7 @@ public class BoatAgentTrainer : Agent
         _velocity = new Vector3(0f, 0f, 0f);
         _rb.angularVelocity = 0f;
         _rb.linearVelocity = new Vector2(0f, 0f);
+        _fireworks = 0;
         _ones = 0;
         _twos = 0;
         _threes = 0;
@@ -53,15 +57,19 @@ public class BoatAgentTrainer : Agent
         transform.localRotation = Quaternion.identity;
         transform.localPosition = new Vector2(0f, 0f);
 
+        SpawnFireworkRestock();
+    }
+    private void SpawnFireworkRestock()
+    {
+        //resets positions
         // decides goal posiotion in a doughnut shape zone
         float randomDirection = random.Range(0f, 360f);
         float randomDistance = random.Range(10f, 35f);
-        Vector3 goalPosition = transform.localPosition + new Vector3(math.cos(math.radians(randomDirection)) * randomDistance, math.sin(math.radians(randomDirection)) * randomDistance, 0f);
+        Vector3 goalPosition = new Vector3(math.cos(math.radians(randomDirection)) * randomDistance, math.sin(math.radians(randomDirection)) * randomDistance, 0f);
 
         // applies goal position
         _goal.localPosition = new Vector3(goalPosition.x, goalPosition.y, 0f);
     }
-
     public override void CollectObservations(VectorSensor sensor)
     {
         // boat's position normalized
@@ -71,10 +79,13 @@ public class BoatAgentTrainer : Agent
         // boat's rotation normalized
         float boatRotation_normalized = transform.localRotation.eulerAngles.z / 360f * 2f - 1f;
 
+        float fireworks_normalized = _fireworks / _maxFireworks;
+
         // observations
         sensor.AddObservation(boatPosX_normailized);
         sensor.AddObservation(boatPosY_normailized);
         sensor.AddObservation(boatRotation_normalized);
+        sensor.AddObservation(fireworks_normalized);
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
@@ -117,8 +128,6 @@ public class BoatAgentTrainer : Agent
         var action = act[0];
         transform.localPosition += _velocity;
         ManageVelocity();
-        //AddReward(math.max(_velocity.magnitude - 0.2f, 0) * 100f / MaxStep); // velocity peak is about 0.25 so up to 5 / maxstep
-        //AddReward(math.max(math.pow((30f - new Vector2(transform.localPosition.x - _goal.localPosition.x, transform.localPosition.y - _goal.localPosition.y).magnitude) / 10f, 2), 0f) / MaxStep); // gives exponential reward for proximity, up to about 7.5 / maxstep
 
         switch (action)
         {
@@ -156,9 +165,19 @@ public class BoatAgentTrainer : Agent
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.gameObject.CompareTag("Goal"))
+        if (other.gameObject.CompareTag("FireworkRestock"))
         {
-            GoalReached();
+            _fireworks += 1;
+            SpawnFireworkRestock();
+            if (_fireworks >= _maxFireworks)
+            {
+                _fireworks = _maxFireworks;
+                GoalReached();
+            }
+            else
+            {
+                AddReward(1f);
+            }
         }
     }
 
