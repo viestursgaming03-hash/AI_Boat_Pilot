@@ -4,6 +4,8 @@ using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using random = UnityEngine.Random;
 using Unity.Mathematics;
+using Unity.AppUI.UI;
+using TMPro;
 
 // for training - conda activate mlagents
 // for training - cd "C:\Users\User\AI_boat_pilot"
@@ -15,16 +17,18 @@ public class BoatAgentLooksmaxxing : Agent
 {
     [SerializeField] private Transform _goal;
     [SerializeField] private SpriteRenderer _arrow;
+    [SerializeField] private Object _fireworkProjectile;
     [SerializeField] private ParticleSystem _oarRight;
     [SerializeField] private ParticleSystem _waterRight;
     [SerializeField] private ParticleSystem _oarLeft;
     [SerializeField] private ParticleSystem _waterLeft;
     [SerializeField] private ParticleSystem _oarRightBreak;
     [SerializeField] private ParticleSystem _oarLeftBreak;
+    [SerializeField] private TextMeshProUGUI _progressText;
     [SerializeField] private float _moveSpeed = 0.525f;
     [SerializeField] private float _rotationSpeed = 135f;
 
-    Rigidbody2D _rb;
+    Rigidbody2D _rb; 
     private ParticleSystem _oarRightInstance;
     private ParticleSystem _waterRightInstance;
     private ParticleSystem _oarLeftInstance;
@@ -36,6 +40,8 @@ public class BoatAgentLooksmaxxing : Agent
     private int _twos = 0;
     private int _threes = 0;
     private int _fours = 0;
+    private int _fireworks = 0;
+    private int _maxFireworks = 5;
     private int _currentEpisode = 0;
     private float _cumulativeReward = 0f;
     public override void Initialize()
@@ -53,6 +59,7 @@ public class BoatAgentLooksmaxxing : Agent
         _velocity = new Vector3(0f, 0f, 0f);
         _rb.angularVelocity = 0f;
         _rb.linearVelocity = new Vector2(0f, 0f);
+        _fireworks = 0;
         _ones = 0;
         _twos = 0;
         _threes = 0;
@@ -60,16 +67,21 @@ public class BoatAgentLooksmaxxing : Agent
 
         SpawnObjects();
     }
-
     private void SpawnObjects()
     {
         transform.localRotation = Quaternion.identity;
         transform.localPosition = new Vector2(0f, 0f);
 
+        SpawnFireworkRestock();
+    }
+
+private void SpawnFireworkRestock()
+    {
+        //resets positions
         // decides goal posiotion in a doughnut shape zone
         float randomDirection = random.Range(0f, 360f);
         float randomDistance = random.Range(10f, 35f);
-        Vector3 goalPosition = transform.localPosition + new Vector3(math.cos(math.radians(randomDirection)) * randomDistance, math.sin(math.radians(randomDirection)) * randomDistance, 0f);
+        Vector3 goalPosition = new Vector3(math.cos(math.radians(randomDirection)) * randomDistance, math.sin(math.radians(randomDirection)) * randomDistance, 0f);
 
         // applies goal position
         _goal.localPosition = new Vector3(goalPosition.x, goalPosition.y, 0f);
@@ -84,10 +96,13 @@ public class BoatAgentLooksmaxxing : Agent
         // boat's rotation normalized
         float boatRotation_normalized = transform.localRotation.eulerAngles.z / 360f * 2f - 1f;
 
+        float fireworks_normalized = _fireworks / _maxFireworks;
+
         // observations
         sensor.AddObservation(boatPosX_normailized);
         sensor.AddObservation(boatPosY_normailized);
         sensor.AddObservation(boatRotation_normalized);
+        sensor.AddObservation(fireworks_normalized);
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
@@ -202,9 +217,20 @@ public class BoatAgentLooksmaxxing : Agent
     }
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.gameObject.CompareTag("Goal"))
+        if (other.gameObject.CompareTag("FireworkRestock"))
         {
-            GoalReached();
+            Instantiate(_fireworkProjectile, transform.localPosition, Quaternion.identity);
+            _fireworks += 1;
+            AddReward(2f);
+            _cumulativeReward = GetCumulativeReward();
+            SpawnFireworkRestock();
+            if (_fireworks >= _maxFireworks)
+            {
+                _fireworks = _maxFireworks;
+                _progressText.text = _fireworks + "/5";
+                GoalReached();
+            }
+            _progressText.text = _fireworks + "/5";
         }
     }
 
